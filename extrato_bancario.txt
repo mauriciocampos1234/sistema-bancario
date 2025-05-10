@@ -1,0 +1,7 @@
+=== Extrato Bancário ===
+Depósito | R$ 1000.00 | 09/05/2025 11:50 | Pendente
+  → Compensação: 09/05/2025 18:00
+Depósito | R$ 2000.00 | 09/05/2025 11:50 | Pendente
+  → Compensação: 09/05/2025 18:00
+Depósito | R$ 3000.00 | 09/05/2025 11:50 | Pendente
+  → Compensação: 09/05/2025 18:00
