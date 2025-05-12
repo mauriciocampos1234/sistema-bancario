@@ -80,16 +80,19 @@ As operações são vinculadas à conta selecionada
 Permite escolher entre depósito em dinheiro ou cheque
 Registra histórico com status inicial como "Pendente"
 Agendamento automático de compensação conforme regras de horário e dia útil
+
 ✅ Saque
 Limite diário de até 3 saques
 Valor máximo por saque: R$ 500,00
 Integração com cheque especial (limite adicional de R$ 1000,00 )
 Saques noturnos (antes das 8h ou após as 22h) limitados a 50% do saldo disponível + limite
+
 ✅ Saldo
 Exibe o saldo atual e depósitos pendentes
 Mostra também:
 O valor do limite concedido pelo banco
 O total disponível (saldo + limite)
+
 ✅ Extrato
 Exibe todas as operações realizadas na conta ativa
 Histórico filtrado automaticamente pela conta selecionada
@@ -100,6 +103,9 @@ Arquivo .csv
 ## 5. Persistência de Dados
 Todos os dados (usuários, contas e histórico) são salvos em um arquivo JSON chamado dados_bancarios.json
 Garantia de persistência entre sessões do programa
+
+### Para uma melhor visualização(Formatação) dos dados que são gerados em JSON
+💻 [jsonviewe](https://jsonviewer.stack.hu/)
 
 ## 6. Histórico por Conta
 Cada operação registrada está vinculada ao número da conta
