@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import pytz #Poderiamos usar o timedelta do python, mas o pytz é menos verboso, mais declarativo e mais fácil de usar
 import csv
 
 # Saldo inicial zerado
@@ -15,7 +16,7 @@ VALOR_MAX_SAQUE = 500
 contagem_depositos = 0
 contagem_extratos = 0
 contagem_saques_hoje = 0
-data_ultimo_saque = datetime.now().date()
+data_ultimo_saque = datetime.now(pytz.timezone("America/Sao_Paulo")).date()
 
 # Armazenamento
 depositos_pendentes = []
@@ -24,12 +25,12 @@ historico = []
 # Função de compensação de depósitos
 def compensar_depositos():
     global saldo
-    agora = datetime.now()
+    agora = datetime.now(pytz.timezone("America/Sao_Paulo")) # Responsável por pegar a data e hora atual, verifica se o depósito já pode ser compensado
     for deposito in depositos_pendentes[:]:  # cópia da lista
         if agora >= deposito["compensacao"]:
             saldo += deposito["valor"]
             deposito["status"] = "Efetivado"
-            historico.append({
+            historico.append({ #Dicionário e append para o histórico, parece Json mas é o padrão python para facilitar a leitura e manipulação
                 "tipo": "Depósito",
                 "valor": deposito["valor"],
                 "data": agora,
@@ -64,7 +65,7 @@ while opcao != 0:
         print("2 - Cheque")
         tipo_opcao = input("Escolha uma opção (1 ou 2): ").strip()
 
-        agora = datetime.now()
+        agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
         hora = agora.hour
         compensacao = None
 
@@ -103,9 +104,9 @@ while opcao != 0:
         })
 
         contagem_depositos += 1
-        print(f"✅ Depósito de R$ {valor:.2f} agendado para {compensacao.strftime('%d/%m/%Y %H:%M')}")
-
-
+        print(f"✅ Depósito de R$ {valor:.2f} agendado para {compensacao.strftime('%d/%m/%Y %H:%M')}") #strftime formata a data e hora, o %d é o dia, 
+        #%m é o mês e %Y é o ano, %H é a hora e %M é os minutos (Mascara)
+    
     elif opcao == 2:
         print("💰 Você escolheu a opção Saldo!")
         saldo_pendente = sum(d["valor"] for d in depositos_pendentes)
@@ -118,11 +119,12 @@ while opcao != 0:
             continue
 
         print("📄 Você escolheu a opção Extrato!")
-        print("-" * 40)
+        print("-" * 40) #exibir uma linha composta por 40 caracteres de hífen (-), No caso, a expressão "-" * 40 resulta em 
+        #uma string que contém exatamente 40 hífens consecutivos, como "----------------------------------------".
         if not historico:
             print("🔍 Nenhuma operação registrada.")
         else:
-            for op in sorted(historico, key=lambda x: x["data"]):
+            for op in sorted(historico, key=lambda x: x["data"]): #função sorted ordenando o iterável e Colocando em ordem crescente
                 data_formatada = op["data"].strftime("%d/%m/%Y %H:%M")
                 print(f"{op['tipo']} | R$ {op['valor']:.2f} | {data_formatada} | {op['status']}")
                 if op["status"] == "Pendente":
@@ -161,7 +163,7 @@ while opcao != 0:
 
     elif opcao == 4:
         print("🏧 Você escolheu a opção Sacar!")
-        agora = datetime.now()
+        agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
 
         # Zera contador de saques se for um novo dia
         if data_ultimo_saque != agora.date():

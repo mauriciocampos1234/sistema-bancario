@@ -1,0 +1,74 @@
+{
+    "usuarios": [
+        {
+            "nome": "Mauricio Campos",
+            "nascimento": "21/07/1977",
+            "cpf": "11122233345",
+            "endereco": "Rua Andradina Moraes, 77 - Centro - São Paulo-SP - 11234555"
+        },
+        {
+            "nome": "Fatima Araújo",
+            "nascimento": "29/09/1978",
+            "cpf": "00099988876",
+            "endereco": "Avenida Abantus, 99 - Jd. Maricá - Minas Gerais-MG - 99876543"
+        }
+    ],
+    "contas": [
+        {
+            "agencia": "0001",
+            "numero": 1,
+            "usuario_cpf": "11122233345",
+            "ativo": true
+        },
+        {
+            "agencia": "0001",
+            "numero": 2,
+            "usuario_cpf": "00099988876",
+            "ativo": true
+        }
+    ],
+    "historico": [
+        {
+            "tipo": "Depósito",
+            "valor": 1000.0,
+            "data": "2025-05-12T19:02:02.844567-03:00",
+            "status": "Pendente",
+            "conta_numero": 1
+        },
+        {
+            "tipo": "Depósito",
+            "valor": 2000.0,
+            "data": "2025-05-12T19:02:14.320205-03:00",
+            "status": "Pendente",
+            "conta_numero": 1
+        },
+        {
+            "tipo": "Depósito",
+            "valor": 1000.0,
+            "data": "2025-05-12T19:02:29.980782-03:00",
+            "status": "Pendente",
+            "conta_numero": 1
+        },
+        {
+            "tipo": "Saque",
+            "valor": 100.0,
+            "data": "2025-05-12T19:03:15.694613-03:00",
+            "status": "Efetivado",
+            "conta_numero": 1
+        },
+        {
+            "tipo": "Saque",
+            "valor": 100.0,
+            "data": "2025-05-12T19:03:38.167120-03:00",
+            "status": "Efetivado",
+            "conta_numero": 1
+        },
+        {
+            "tipo": "Saque",
+            "valor": 100.0,
+            "data": "2025-05-12T19:03:54.987492-03:00",
+            "status": "Efetivado",
+            "conta_numero": 1
+        }
+    ]
+}
