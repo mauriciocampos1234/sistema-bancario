@@ -133,7 +133,7 @@ Ideal para validar rapidamente o uso do cheque especial e outras operações
 ## ✍️ Autor
 
 **Maurício Campos**  
-Desenvolvedor Full Stack | Estudante de Desenvolvimento Java na Estácio  
+Desenvolvedor Full Stack | Estudante de Desenvolvimento Python | Java | PHP | Front-end na Universidade Estácio  
 📍 [LinkedIn](https://www.linkedin.com/in/mauricio-campos-4a666b317)  
 💻 [GitHub](https://github.com/mauriciocampos1234)
 
