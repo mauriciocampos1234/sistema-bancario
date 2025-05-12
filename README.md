@@ -52,6 +52,65 @@ Este projeto simula um sistema de **banco digital** com funcionalidades básicas
 
 # 🏦 Banco Digital em Python (Segunda fase do projeto)
 
+# 🛠️ Funcionalidades Implementadas
+O sistema bancário foi desenvolvido em Python com o objetivo de simular operações básicas de uma conta corrente, com persistência de dados via JSON e controle de acesso por usuário e conta. A seguir estão as funcionalidades implementadas com base no código original e nas melhorias realizadas:
+
+## 1. Cadastro de Usuários
+Cada usuário é composto por:
+Nome completo
+Data de nascimento
+CPF (somente números)
+Endereço (formato: logradouro, número - bairro - cidade/sigla - CEP)
+O sistema garante que não haja dois usuários com o mesmo CPF.
+
+## 2. Cadastro de Contas Correntes
+Cada conta possui:
+Agência fixa (0001)
+Número sequencial iniciado em 1
+Vínculo com um único usuário
+Um usuário pode possuir mais de uma conta.
+
+## 3. Login do Usuário
+Autenticação por CPF
+Após login bem-sucedido, o usuário seleciona a conta ativa entre as disponíveis
+As operações são vinculadas à conta selecionada
+
+## 4. Operações Bancárias
+✅ Depósito
+Permite escolher entre depósito em dinheiro ou cheque
+Registra histórico com status inicial como "Pendente"
+Agendamento automático de compensação conforme regras de horário e dia útil
+✅ Saque
+Limite diário de até 3 saques
+Valor máximo por saque: R$ 500,00
+Integração com cheque especial (limite adicional de R$ 1000,00 )
+Saques noturnos (antes das 8h ou após as 22h) limitados a 50% do saldo disponível + limite
+✅ Saldo
+Exibe o saldo atual e depósitos pendentes
+Mostra também:
+O valor do limite concedido pelo banco
+O total disponível (saldo + limite)
+✅ Extrato
+Exibe todas as operações realizadas na conta ativa
+Histórico filtrado automaticamente pela conta selecionada
+Permite exportar extrato para:
+Arquivo .txt
+Arquivo .csv
+
+## 5. Persistência de Dados
+Todos os dados (usuários, contas e histórico) são salvos em um arquivo JSON chamado dados_bancarios.json
+Garantia de persistência entre sessões do programa
+
+## 6. Histórico por Conta
+Cada operação registrada está vinculada ao número da conta
+O extrato mostra apenas as operações da conta ativa
+
+## 7. Modo de Teste
+A função compensar_depositos() foi comentada no loop principal para facilitar testes
+Isso permite realizar saques mesmo sem aguardar a compensação dos depósitos
+Ideal para validar rapidamente o uso do cheque especial e outras operações
+
+
 ## 🧪 Como Executar
 
 1. Clone este repositório:
