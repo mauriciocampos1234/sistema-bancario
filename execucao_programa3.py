@@ -2,10 +2,8 @@ import json
 from datetime import datetime, timedelta
 import pytz
 
-
 # Caminho do arquivo de persistência
 ARQUIVO_DADOS = "dados_bancarios.json"
-
 
 class Usuario:
     def __init__(self, nome, nascimento, cpf, endereco):
@@ -25,7 +23,6 @@ class Usuario:
     @staticmethod
     def from_dict(data):
         return Usuario(**data)
-
 
 class Conta:
     AGENCIA_PADRAO = "0001"
@@ -51,7 +48,6 @@ class Conta:
         conta.ativo = data["ativo"]
         return conta
 
-
 class Historico:
     def __init__(self):
         self.registros = []
@@ -75,7 +71,6 @@ class Historico:
     def carregar_de_dict(self, registros):
         self.registros = registros
 
-
 class Banco:
     LIMITE_SAQUES = 3
     VALOR_MAX_SAQUE = 500
@@ -87,7 +82,11 @@ class Banco:
         self.historico = Historico()
         self.saldo = 0.0
         self.contagem_saques_hoje = 0
-        self.data_ultimo_saque = datetime.now(pytz.timezone("America/Sao_Paulo")).date()
+        self.contagem_depositos_hoje = 0
+        self.extratos_impressos = 0
+        self.data_ultimo_saque = None
+        self.data_ultimo_deposito = None
+        self.data_ultimo_extrato = None
         self.usuario_logado = None
         self.conta_ativa = None
         self.prox_numero_conta = 1
@@ -99,7 +98,6 @@ class Banco:
                 self.usuarios = [Usuario.from_dict(u) for u in dados.get("usuarios", [])]
                 self.contas = [Conta.from_dict(c) for c in dados.get("contas", [])]
                 self.historico.carregar_de_dict(dados.get("historico", []))
-
                 if self.contas:
                     self.prox_numero_conta = max(c.numero for c in self.contas) + 1
                 print("✅ Dados carregados com sucesso.")
@@ -139,23 +137,18 @@ class Banco:
         if not usuario:
             print("❌ Usuário não encontrado.")
             return
-
         contas_do_usuario = [c for c in self.contas if c.usuario_cpf == cpf and c.ativo]
         if not contas_do_usuario:
             print("❌ Você não possui conta ativa.")
             return
-
         print("Selecione sua conta:")
         for conta in contas_do_usuario:
             print(f"Número: {conta.numero} | Agência: {conta.agencia}")
-
         numero_selecionado = int(input("Digite o número da conta desejada: "))
         conta_selecionada = self.encontrar_conta_por_numero(numero_selecionado)
-
         if not conta_selecionada or conta_selecionada not in contas_do_usuario:
             print("❌ Conta inválida ou inativa.")
             return
-
         self.usuario_logado = usuario
         self.conta_ativa = conta_selecionada
         print(f"🔓 Login realizado com sucesso! Bem-vindo(a), {usuario.nome}.")
@@ -169,16 +162,14 @@ class Banco:
 
     def sacar(self):
         agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
-
-        if self.data_ultimo_saque != agora.date():
+        if self.data_ultimo_saque and (agora - self.data_ultimo_saque).days < 1:
+            if self.contagem_saques_hoje >= self.LIMITE_SAQUES:
+                print("⚠️ Você já realizou os 3 saques permitidos nas últimas 24 horas.")
+                return
+        else:
             self.contagem_saques_hoje = 0
-            self.data_ultimo_saque = agora.date()
 
-        if self.contagem_saques_hoje >= self.LIMITE_SAQUES:
-            print("⚠️ Você já realizou os 3 saques permitidos hoje.")
-            return
-
-        if agora.hour >= 22 or agora.hour < 8:
+        if agora.hour >= 22:
             limite_saque = (self.saldo + self.LIMITE_CHEQUE_ESPECIAL) / 2
             print("🌙 Saques após as 22h são limitados a 50% do saldo disponível.")
         else:
@@ -190,60 +181,79 @@ class Banco:
         if valor <= limite_saque:
             self.saldo -= valor
             self.contagem_saques_hoje += 1
+            self.data_ultimo_saque = agora
             self.historico.adicionar_registro("Saque", valor, "Efetivado", self.conta_ativa.numero)
             self.salvar_dados()
             print(f"✅ Saque de R$ {valor:.2f} realizado com sucesso!")
-            print("Retire seu dinheiro na boca do caixa.")
         else:
             print("❌ Valor excede o limite permitido para saque.")
-            print("Tente novamente com um valor menor.")
 
     def depositar(self):
+        agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
+        if self.data_ultimo_deposito and (agora - self.data_ultimo_deposito).days < 1:
+            if self.contagem_depositos_hoje >= 3:
+                print("⚠️ Você já realizou os 3 depósitos permitidos nas últimas 24 horas.")
+                return
+        else:
+            self.contagem_depositos_hoje = 0
+
         print("📥 Você escolheu a opção Depositar!")
         valor = float(input("Digite o valor do depósito: "))
-
         print("Selecione o tipo de depósito:")
         print("1 - Dinheiro")
         print("2 - Cheque")
         tipo_opcao = input("Escolha uma opção (1 ou 2): ").strip()
 
-        agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
-        hora = agora.hour
         compensacao = None
-
         if tipo_opcao == "1":
-            if agora.weekday() >= 5 or hora >= 16:
+            if agora.weekday() >= 5 or agora.hour >= 16:
                 compensacao = (agora + timedelta(days=(7 - agora.weekday()) % 7 or 1)).replace(hour=11, minute=0, second=0)
             else:
                 compensacao = agora.replace(hour=18, minute=0, second=0)
             print("🟢 Depósito em dinheiro agendado para compensação.")
-
         elif tipo_opcao == "2":
             dias_compensacao = 2
-            if agora.weekday() >= 5 or hora >= 16:
+            if agora.weekday() >= 5 or agora.hour >= 16:
                 dias_compensacao += 1
-            compensacao = agora + timedelta(days=dias_compensacao).replace(hour=18, minute=0, second=0)
+            compensacao = (agora + timedelta(days=dias_compensacao)).replace(hour=18, minute=0, second=0)
             print("🟡 Depósito em cheque agendado para compensação (até 3 dias úteis).")
-
         else:
             print("❌ Opção inválida. Tente novamente.")
             return
 
         self.historico.adicionar_registro("Depósito", valor, "Pendente", self.conta_ativa.numero)
         print(f"✅ Depósito de R$ {valor:.2f} agendado para {compensacao.strftime('%d/%m/%Y %H:%M')}")
+        self.contagem_depositos_hoje += 1
+        self.data_ultimo_deposito = agora
         self.salvar_dados()
 
     def exibir_extrato(self):
-        extrato_filtrado = self.historico.filtrar_por_conta(self.conta_ativa.numero)
+        agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
+        if self.data_ultimo_extrato and self.data_ultimo_extrato.month == agora.month:
+            if self.extratos_impressos >= 2:
+                print("⚠️ Limite de 2 extratos mensais atingido. Será cobrado R$ 5,00 por este extrato.")
+                self.saldo -= 5.0
+                self.historico.adicionar_registro("Cobrança Extrato", 5.0, "Efetivado", self.conta_ativa.numero)
+        else:
+            self.extratos_impressos = 0
+            self.data_ultimo_extrato = agora
+
+        self.extratos_impressos += 1
+        extrato_filtrado = [
+            r for r in self.historico.registros
+            if r["conta_numero"] == self.conta_ativa.numero
+            and datetime.fromisoformat(r["data"]).month == agora.month
+        ]
         print("📄 Você escolheu a opção Extrato!")
         print("-" * 40)
         if not extrato_filtrado:
-            print("🔍 Nenhuma operação registrada.")
+            print("🔍 Nenhuma operação registrada neste mês.")
         else:
             for op in sorted(extrato_filtrado, key=lambda x: x["data"]):
                 data_formatada = datetime.fromisoformat(op["data"]).strftime("%d/%m/%Y %H:%M")
                 print(f"{op['tipo']} | R$ {op['valor']:.2f} | {data_formatada} | {op['status']}")
         print("-" * 40)
+        self.salvar_dados()
 
     def criar_usuario(self):
         print("🧾 Cadastrar novo usuário")
@@ -251,15 +261,12 @@ class Banco:
         nascimento = input("Data de nascimento (dd/mm/yyyy): ")
         cpf = input("CPF (somente números): ").strip()
         endereco = input("Endereço (logradouro, número - bairro - cidade/sigla - cep): ")
-
         if not self.validar_cpf(cpf):
             print("❌ CPF inválido.")
             return
-
         if self.encontrar_usuario_por_cpf(cpf):
             print("⚠️ Já existe um usuário com esse CPF.")
             return
-
         self.usuarios.append(Usuario(nome, nascimento, cpf, endereco))
         self.salvar_dados()
         print("✅ Usuário cadastrado com sucesso!")
@@ -270,16 +277,13 @@ class Banco:
         if not usuario:
             print("❌ Usuário não encontrado.")
             return
-
         nova_conta = Conta(self.prox_numero_conta, cpf)
         self.contas.append(nova_conta)
         self.prox_numero_conta += 1
         self.salvar_dados()
         print(f"✅ Conta criada com sucesso! Número da conta: {nova_conta.numero}")
 
-
 # --- LOOP PRINCIPAL DO SISTEMA ---
-
 banco = Banco()
 banco.carregar_dados()
 
