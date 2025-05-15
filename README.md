@@ -116,6 +116,11 @@ A função compensar_depositos() foi comentada no loop principal para facilitar 
 Isso permite realizar saques mesmo sem aguardar a compensação dos depósitos
 Ideal para validar rapidamente o uso do cheque especial e outras operações
 
+# 🏦 Banco Digital em Python (Terceira fase do projeto)
+
+# 🛠️ Funcionalidades Implementadas
+Modelar o sistema bancário com Programação Orientada a Objetos (POO) em Python , mantendo todas as funcionalidades do sistema, mas agora com uma arquitetura mais profissional e escalável.
+
 
 ## 🧪 Como Executar
 
