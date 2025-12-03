@@ -1,5 +1,5 @@
 
-# 🏦 Banco Digital em Python (Primeira fase do projeto)
+# 🏦 Banco Digital em Python
 
 Este projeto simula um sistema de **banco digital** com funcionalidades básicas como depósitos (em dinheiro ou cheque), saques, consulta de saldo, extrato e exportação de movimentações.
 
