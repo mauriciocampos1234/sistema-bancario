@@ -2,7 +2,7 @@ import textwrap # Importa o módulo textwrap para manipulação de strings multi
 
 # Função de exibição do menu e criando a interface do usuário com a variável menu que recebe uma string formatada """(Várias linhas)"""
 # \n no início da string para pular uma linha antes do menu ser exibido
-#\t para tabulação, ou seja, um espaço maior entre o texto e a opção
+#\t para tabulação, ou seja, um espaço maior entre o texto e a opção.
 def menu():
     menu = """\n
     ================ MENU ================
