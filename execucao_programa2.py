@@ -1,381 +1,192 @@
-import json
-from datetime import datetime, timedelta
-import pytz
+import textwrap # Importa o módulo textwrap para manipulação de strings multilinha
 
-# Caminho do arquivo de persistência
-ARQUIVO_DADOS = "dados_bancarios.json"
+# Função de exibição do menu e criando a interface do usuário com a variável menu que recebe uma string formatada """(Várias linhas)"""
+# \n no início da string para pular uma linha antes do menu ser exibido
+#\t para tabulação, ou seja, um espaço maior entre o texto e a opção
+def menu():
+    menu = """\n
+    ================ MENU ================
+    [d]\tDepositar
+    [s]\tSacar
+    [e]\tExtrato
+    [nc]\tNova conta
+    [lc]\tListar contas
+    [nu]\tNovo usuário
+    [q]\tSair
+    => """ # O símbolo => indica onde o usuário deve digitar sua opção
+    return input(textwrap.dedent(menu)) # textwrap.dedent() remove a indentação desnecessária da string formatada da variável menu
 
-# Variáveis globais (serão carregadas/salvas no JSON)
-usuarios = []
-contas = []
-historico = []
+# Função para realizar depósitos
+def depositar(saldo, valor, extrato, /): # O / indica que os parâmetros antes dele são posicionais
+    if valor > 0: # Verifica se o valor do depósito é maior que zero
+        saldo += valor # Adiciona o valor ao saldo
+        extrato += f"Depósito:\tR$ {valor:.2f}\n" # Adiciona uma linha ao extrato com o valor do depósito formatado com duas casas decimais
+        print("\n=== Depósito realizado com sucesso! ===")
+    else:
+        print("\n@@@ Operação falhou! O valor informado é inválido. @@@") # Mensagem de erro para valor inválido, 
+        #uso de @@@ para destacar a mensagem
 
-# Outras variáveis de operação
-saldo = 0.0
-limite_cheque_especial = 1000.0  # Novo recurso: limite concedido pelo banco
-opcao_menu = -1
+    return saldo, extrato # Retorna o saldo atualizado e o extrato
 
-LIMITE_DEPOSITOS = 3
-LIMITE_EXTRATOS = 3
-LIMITE_SAQUES_DIA = 3
-VALOR_MAX_SAQUE = 500
+# Função para realizar saques
+# Função com parâmetros nomeados obrigatórios usando *, ou seja, os argumentos devem ser passados com o nome do parâmetro
+def sacar(*, saldo, valor, extrato, limite, numero_saques, limite_saques): # Parâmetros nomeados obrigatórios
+    excedeu_saldo = valor > saldo # Verifica se o valor do saque excede o saldo disponível
+    excedeu_limite = valor > limite # Verifica se o valor do saque excede o limite por saque
+    excedeu_saques = numero_saques >= limite_saques # Verifica se o número de saques já realizados excede o limite de saques permitidos
 
-contagem_depositos = 0
-contagem_extratos = 0
-contagem_saques_hoje = 0
-data_ultimo_saque = datetime.now(pytz.timezone("America/Sao_Paulo")).date()
+    # Verifica as condições de falha do saque e exibe mensagens apropriadas
+    if excedeu_saldo:
+        print("\n@@@ Operação falhou! Você não tem saldo suficiente. @@@")
 
-depositos_pendentes = []  # temporário, não precisa salvar
+    elif excedeu_limite:
+        print("\n@@@ Operação falhou! O valor do saque excede o limite. @@@")
 
-# Variáveis do login
-usuario_logado = None
-conta_ativa = None
-prox_numero_conta = 1
+    elif excedeu_saques:
+        print("\n@@@ Operação falhou! Número máximo de saques excedido. @@@")
 
-# --- FUNÇÕES DE PERSISTÊNCIA ---
+    # Se todas as condições forem atendidas, realiza o saque
+    elif valor > 0: # Verifica se o valor do saque é maior que zero
+        saldo -= valor # Subtrai o valor do saldo
+        extrato += f"Saque:\t\tR$ {valor:.2f}\n" # Adiciona uma linha ao extrato com o valor do saque formatado com duas casas decimais
+        numero_saques += 1 # Incrementa o número de saques realizados
+        print("\n=== Saque realizado com sucesso! ===")
 
-def carregar_dados():
-    global usuarios, contas, historico, prox_numero_conta
-    try:
-        with open(ARQUIVO_DADOS, "r", encoding="utf-8") as f:
-            dados = json.load(f)
-            usuarios = dados.get("usuarios", [])
-            contas = dados.get("contas", [])
-            historico = dados.get("historico", [])
+    # Se o valor do saque for inválido (menor ou igual a zero)
+    else:
+        print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
 
-            # Determina o próximo número de conta disponível
-            if contas:
-                prox_numero_conta = max(c["numero"] for c in contas) + 1
-            else:
-                prox_numero_conta = 1
+    return saldo, extrato # Retorna o saldo atualizado e o extrato
 
-            print("✅ Dados carregados com sucesso.")
-    except FileNotFoundError:
-        print("⚠️ Arquivo de dados não encontrado. Iniciando com dados vazios.")
-    except Exception as e:
-        print(f"❌ Erro ao carregar dados: {e}")
+# Função para exibir o extrato
+# Parâmetros posicionais obrigatórios antes do / e parâmetros nomeados obrigatórios após o *
+def exibir_extrato(saldo, /, *, extrato):
+    print("\n================ EXTRATO ================")
+    print("Não foram realizadas movimentações." if not extrato else extrato) # Exibe mensagem se o extrato estiver vazio, 
+    #caso contrário exibe o extrato
+    print(f"\nSaldo:\t\tR$ {saldo:.2f}") # Exibe o saldo formatado com duas casas decimais
+    print("==========================================")
 
-def salvar_dados():
-    dados = {
-        "usuarios": usuarios,
-        "contas": contas,
-        "historico": historico
-    }
-    try:
-        with open(ARQUIVO_DADOS, "w", encoding="utf-8") as f:
-            json.dump(dados, f, indent=4, ensure_ascii=False)
-        print("💾 Dados salvos com sucesso.")
-    except Exception as e:
-        print(f"❌ Erro ao salvar dados: {e}")
+# Função para criar um novo usuário
+# Recebe a lista de usuários como parâmetro
+# Solicita os dados do usuário via input
+# Verifica se o usuário já existe chamando a função filtrar_usuario() passando o CPF e a lista de usuários
+def criar_usuario(usuarios):
+    cpf = input("Informe o CPF (somente número): ") # Solicita o CPF do usuário
+    usuario = filtrar_usuario(cpf, usuarios) # Verifica se já existe um usuário com o CPF informado. filtrar_usuario é chamada 
+    #para buscar o usuário na lista de usuários
 
-# --- FUNÇÕES AUXILIARES ---
+    # Se o usuário já existir, exibe uma mensagem de erro e retorna
+    if usuario:
+        print("\n@@@ Já existe usuário com esse CPF! @@@")
+        return
 
-def limpar_tela():
-    print("\n" * 100)
+    nome = input("Informe o nome completo: ") # Solicita o nome completo do usuário
+    data_nascimento = input("Informe a data de nascimento (dd-mm-aaaa): ") # Solicita a data de nascimento do usuário
+    endereco = input("Informe o endereço (logradouro, nro - bairro - cidade/sigla estado): ") # Solicita o endereço do usuário
 
-def validar_cpf(cpf):
-    return cpf.isdigit() and len(cpf) == 11
+    usuarios.append({"nome": nome, "data_nascimento": data_nascimento, "cpf": cpf, "endereco": endereco}) # Adiciona o novo usuário 
+    #à lista de usuários usando um dicionário com os dados fornecidos e a função append() que adiciona o dicionário à lista
 
-def encontrar_usuario_por_cpf(cpf):
-    for usuario in usuarios:
-        if usuario["cpf"] == cpf:
-            return usuario
-    return None
+    print("=== Usuário criado com sucesso! ===")
 
-def encontrar_conta_por_numero(numero):
+# Função para filtrar um usuário pelo CPF
+# Retorna o usuário se encontrado, caso contrário retorna None
+# Recebe o CPF e a lista de usuários como parâmetros
+def filtrar_usuario(cpf, usuarios):
+    # Lista de usuários filtrados pelo CPF usando list comprehension
+    usuarios_filtrados = [usuario for usuario in usuarios if usuario["cpf"] == cpf] # Filtra a lista de usuários para encontrar 
+    #o usuário com o CPF correspondente
+    return usuarios_filtrados[0] if usuarios_filtrados else None # Retorna o primeiro usuário encontrado ou None se a lista estiver vazia
+
+# Função para criar uma nova conta bancária
+# Recebe a agência, número da conta e a lista de usuários como parâmetros
+# Solicita o CPF do usuário via input e verifica se o usuário existe chamando a função filtrar_usuario()
+def criar_conta(agencia, numero_conta, usuarios):
+    cpf = input("Informe o CPF do usuário: ")
+    usuario = filtrar_usuario(cpf, usuarios)
+
+    # Se o usuário for encontrado, cria a conta e exibe uma mensagem de sucesso
+    if usuario:
+        print("\n=== Conta criada com sucesso! ===")
+        return {"agencia": agencia, "numero_conta": numero_conta, "usuario": usuario} # Retorna um dicionário representando a conta com agência,
+        #número da conta e dados do usuário. Chama a função criar_conta() que cria a conta e retorna o dicionário que segnifica chave-valor
+
+    print("\n@@@ Usuário não encontrado, fluxo de criação de conta encerrado! @@@") # Mensagem de erro se o usuário não for encontrado
+
+# Função para listar todas as contas bancárias
+# Recebe a lista de contas como parâmetro
+# Itera sobre a lista de contas e exibe os detalhes de cada conta formatados
+def listar_contas(contas):
+    # for conta in contas: sigifnica que para cada conta na lista de contas, execute o bloco de código indentado abaixo
     for conta in contas:
-        if conta["numero"] == numero and conta["ativo"]:
-            return conta
-    return None
+        # String multilinha formatada com os detalhes da conta
+        linha = f"""\ 
+            
+            Agência:\t{conta['agencia']} 
+            C/C:\t\t{conta['numero_conta']}
+            Titular:\t{conta['usuario']['nome']}
+        """
+        print("=" * 100)
+        print(textwrap.dedent(linha))
 
-def compensar_depositos():
-    """Essa função pode ser reativada depois para simular compensação real."""
-    global saldo
-    agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
-    for deposito in depositos_pendentes[:]:
-        if agora >= deposito["compensacao"]:
-            saldo += deposito["valor"]
-            deposito["status"] = "Efetivado"
-            historico.append({
-                "tipo": "Depósito",
-                "valor": deposito["valor"],
-                "data": agora.isoformat(),
-                "status": "Efetivado",
-                "conta_numero": conta_ativa["numero"]
-            })
-            depositos_pendentes.remove(deposito)
-            print(f"💰 Depósito compensado: R$ {deposito['valor']:.2f}")
+# Função principal do sistema bancário com todas as funcionalidades
+def main():
+    LIMITE_SAQUES = 3
+    AGENCIA = "0001"
 
-# --- CADASTROS E LOGIN ---
+    saldo = 0
+    limite = 500
+    extrato = ""
+    numero_saques = 0
+    usuarios = []
+    contas = []
 
-def criar_usuario():
-    print("🧾 Cadastrar novo usuário")
-    nome = input("Nome completo: ")
-    nascimento = input("Data de nascimento (dd/mm/yyyy): ")
-    cpf = input("CPF (somente números): ").strip()
-    endereco = input("Endereço (logradouro, número - bairro - cidade/sigla - cep): ")
+    # Loop infinito para exibir o menu e processar as opções do usuário
+    while True:
+        opcao = menu()
 
-    if not validar_cpf(cpf):
-        print("❌ CPF inválido.")
-        return
+        if opcao == "d":
+            valor = float(input("Informe o valor do depósito: "))
 
-    if encontrar_usuario_por_cpf(cpf):
-        print("⚠️ Já existe um usuário com esse CPF.")
-        return
+            saldo, extrato = depositar(saldo, valor, extrato)
 
-    usuarios.append({
-        "nome": nome,
-        "nascimento": nascimento,
-        "cpf": cpf,
-        "endereco": endereco
-    })
-    salvar_dados()
-    print("✅ Usuário cadastrado com sucesso!")
+        elif opcao == "s":
+            valor = float(input("Informe o valor do saque: "))
 
-def listar_usuarios():
-    print("👥 Lista de usuários:")
-    if not usuarios:
-        print("🔍 Nenhum usuário cadastrado.")
-        return
-    for u in usuarios:
-        print(f"{u['nome']} | CPF: {u['cpf']}")
+            # Chama a função sacar() com parâmetros nomeados (Chave-valor dos argumentos passados)
+            saldo, extrato = sacar(
+                saldo=saldo,
+                valor=valor,
+                extrato=extrato,
+                limite=limite,
+                numero_saques=numero_saques,
+                limite_saques=LIMITE_SAQUES,
+            )
 
-def criar_conta_corrente():
-    global prox_numero_conta
-    cpf = input("Digite o CPF do usuário para vincular a conta: ")
-    usuario = encontrar_usuario_por_cpf(cpf)
-    if not usuario:
-        print("❌ Usuário não encontrado.")
-        return
+        elif opcao == "e":
+            exibir_extrato(saldo, extrato=extrato)
 
-    nova_conta = {
-        "agencia": "0001",
-        "numero": prox_numero_conta,
-        "usuario_cpf": cpf,
-        "ativo": True
-    }
+        elif opcao == "nu":
+            criar_usuario(usuarios)
 
-    contas.append(nova_conta)
-    prox_numero_conta += 1
-    salvar_dados()
-    print(f"✅ Conta criada com sucesso! Número da conta: {nova_conta['numero']}")
+        elif opcao == "nc":
+            numero_conta = len(contas) + 1 # Gera o número da conta com base na quantidade de contas existentes, 
+            #len() retorna o tamanho da lista contas
+            conta = criar_conta(AGENCIA, numero_conta, usuarios) # Chama a função criar_conta() para criar uma nova conta
 
-def listar_contas():
-    print("🏦 Lista de contas correntes:")
-    if not contas:
-        print("🔍 Nenhuma conta cadastrada.")
-        return
-    for c in contas:
-        if c["ativo"]:
-            print(f"Agência: {c['agencia']} | Conta: {c['numero']} | CPF: {c['usuario_cpf']}")
+            # Se a conta for criada com sucesso, adiciona à lista de contas
+            if conta:
+                contas.append(conta) # Adiciona a nova conta à lista de contas usando a função append()
 
-def login():
-    global usuario_logado, conta_ativa
-    cpf = input("Digite seu CPF para login: ")
-    usuario = encontrar_usuario_por_cpf(cpf)
-    if not usuario:
-        print("❌ Usuário não encontrado.")
-        return
+        elif opcao == "lc":
+            listar_contas(contas) # Chama a função listar_contas() para exibir todas as contas bancárias
 
-    contas_do_usuario = [c for c in contas if c["usuario_cpf"] == cpf and c["ativo"]]
-    if not contas_do_usuario:
-        print("❌ Você não possui conta ativa.")
-        return
+        elif opcao == "q":
+            break # Sai do loop e encerra o programa
 
-    print("Selecione sua conta:")
-    for conta in contas_do_usuario:
-        print(f"Número: {conta['numero']} | Agência: {conta['agencia']}")
-
-    numero_selecionado = int(input("Digite o número da conta desejada: "))
-    conta_selecionada = encontrar_conta_por_numero(numero_selecionado)
-
-    if not conta_selecionada or conta_selecionada not in contas_do_usuario:
-        print("❌ Conta inválida ou inativa.")
-        return
-
-    usuario_logado = usuario
-    conta_ativa = conta_selecionada
-    print(f"🔓 Login realizado com sucesso! Bem-vindo(a), {usuario['nome']}.")
-
-# --- OPERAÇÕES DO MENU PRINCIPAL ---
-
-def menu_principal():
-    print("\nMENU PRINCIPAL")
-    print("1 - Depositar")
-    print("2 - Saldo")
-    print("3 - Extrato")
-    print("4 - Sacar")
-    print("0 - Sair")
-
-def depositar():
-    global contagem_depositos
-    if contagem_depositos >= LIMITE_DEPOSITOS:
-        print("⚠️ Limite máximo de depósitos excedido.")
-        return
-
-    print("📥 Você escolheu a opção Depositar!")
-    valor = float(input("Digite o valor do depósito: "))
-
-    print("Selecione o tipo de depósito:")
-    print("1 - Dinheiro")
-    print("2 - Cheque")
-    tipo_opcao = input("Escolha uma opção (1 ou 2): ").strip()
-
-    agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
-    hora = agora.hour
-    compensacao = None
-
-    if tipo_opcao == "1":
-        if agora.weekday() >= 5 or hora >= 16:
-            compensacao = (agora + timedelta(days=(7 - agora.weekday()) % 7 or 1)).replace(hour=11, minute=0, second=0)
         else:
-            compensacao = agora.replace(hour=18, minute=0, second=0)
-        print("🟢 Depósito em dinheiro agendado para compensação.")
+            print("Operação inválida, por favor selecione novamente a operação desejada.")
 
-    elif tipo_opcao == "2":
-        dias_compensacao = 2
-        if agora.weekday() >= 5 or hora >= 16:
-            dias_compensacao += 1
-        compensacao = agora + timedelta(days=dias_compensacao).replace(hour=18, minute=0, second=0)
-        print("🟡 Depósito em cheque agendado para compensação (até 3 dias úteis).")
 
-    else:
-        print("❌ Opção inválida. Tente novamente.")
-        return
-
-    depositos_pendentes.append({
-        "valor": valor,
-        "compensacao": compensacao,
-        "status": "Pendente"
-    })
-
-    historico.append({
-        "tipo": "Depósito",
-        "valor": valor,
-        "data": agora.isoformat(),
-        "status": "Pendente",
-        "conta_numero": conta_ativa["numero"]
-    })
-
-    contagem_depositos += 1
-    print(f"✅ Depósito de R$ {valor:.2f} agendado para {compensacao.strftime('%d/%m/%Y %H:%M')}")
-    salvar_dados()
-
-def exibir_saldo():
-    global saldo, limite_cheque_especial
-    print("💰 Você escolheu a opção Saldo!")
-    saldo_pendente = sum(d["valor"] for d in depositos_pendentes)
-    saldo_disponivel = saldo + limite_cheque_especial
-    print(f"💼 Saldo disponível: R$ {saldo:.2f}")
-    print(f"🕒 Depósitos pendentes: R$ {saldo_pendente:.2f}")
-    print(f"💳 Limite Cheque Especial: R$ {limite_cheque_especial:.2f}")
-    print(f"🏦 Saldo + Limite: R$ {saldo_disponivel:.2f}")
-
-def exibir_extrato():
-    global contagem_extratos
-    if contagem_extratos >= LIMITE_EXTRATOS:
-        print("⚠️ Limite de extratos excedido.")
-        return
-
-    print("📄 Você escolheu a opção Extrato!")
-    print("-" * 40)
-
-    extrato_filtrado = [h for h in historico if h["conta_numero"] == conta_ativa["numero"]]
-
-    if not extrato_filtrado:
-        print("🔍 Nenhuma operação registrada.")
-    else:
-        for op in sorted(extrato_filtrado, key=lambda x: x["data"]):
-            data_formatada = datetime.fromisoformat(op["data"]).strftime("%d/%m/%Y %H:%M")
-            print(f"{op['tipo']} | R$ {op['valor']:.2f} | {data_formatada} | {op['status']}")
-
-    print("-" * 40)
-    contagem_extratos += 1
-
-def sacar():
-    global saldo, contagem_saques_hoje, data_ultimo_saque, limite_cheque_especial
-    agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
-
-    if data_ultimo_saque != agora.date():
-        contagem_saques_hoje = 0
-        data_ultimo_saque = agora.date()
-
-    if contagem_saques_hoje >= LIMITE_SAQUES_DIA:
-        print("⚠️ Você já realizou os 3 saques permitidos hoje.")
-        return
-
-    if agora.hour >= 22 or agora.hour < 8:
-        limite_saque = (saldo + limite_cheque_especial) / 2
-        print("🌙 Saques após as 22h são limitados a 50% do saldo disponível.")
-    else:
-        limite_saque = min(saldo + limite_cheque_especial, VALOR_MAX_SAQUE)
-
-    print(f"💵 Seu limite de saque atual é de R$ {limite_saque:.2f}")
-    valor = float(input("Digite o valor do saque: "))
-
-    if valor <= limite_saque:
-        saldo -= valor
-        contagem_saques_hoje += 1
-        historico.append({
-            "tipo": "Saque",
-            "valor": valor,
-            "data": agora.isoformat(),
-            "status": "Efetivado",
-            "conta_numero": conta_ativa["numero"]
-        })
-        salvar_dados()
-        print(f"✅ Saque de R$ {valor:.2f} realizado com sucesso!")
-        print("Retire seu dinheiro na boca do caixa.")
-    else:
-        print("❌ Valor excede o limite permitido para saque.")
-        print("Tente novamente com um valor menor.")
-
-# --- LOOP PRINCIPAL DO SISTEMA ---
-
-carregar_dados()  # Carrega os dados antes de começar
-
-while True:
-    if not usuario_logado:
-        print("\nLOGIN")
-        print("1 - Fazer login")
-        print("2 - Criar usuário")
-        print("3 - Criar conta corrente")
-        print("4 - Listar usuários")
-        print("5 - Listar contas")
-        print("0 - Sair")
-        opcao_login = int(input("Escolha uma opção: "))
-        if opcao_login == 1:
-            login()
-        elif opcao_login == 2:
-            criar_usuario()
-        elif opcao_login == 3:
-            criar_conta_corrente()
-        elif opcao_login == 4:
-            listar_usuarios()
-        elif opcao_login == 5:
-            listar_contas()
-        elif opcao_login == 0:
-            print("👋 Sistema encerrado. Obrigado por usar nosso banco!")
-            break
-        else:
-            print("❌ Opção inválida.")
-    else:
-        # COMPENSAR DEPÓSITOS COMENTADO PARA TESTES
-        # compensar_depositos()
-
-        menu_principal()
-        opcao_menu = int(input("Escolha uma opção: "))
-        if opcao_menu == 1:
-            depositar()
-        elif opcao_menu == 2:
-            exibir_saldo()
-        elif opcao_menu == 3:
-            exibir_extrato()
-        elif opcao_menu == 4:
-            sacar()
-        elif opcao_menu == 0:
-            print(f"👋 Até breve, {usuario_logado['nome']}!")
-            usuario_logado = None
-            conta_ativa = None
-        else:
-            print("❌ Opção inválida.")
+main() # Executa a função principal do sistema bancário
